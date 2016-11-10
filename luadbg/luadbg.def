@@ -1,0 +1,13 @@
+LIBRARY
+EXPORTS
+	lua
+
+;--------------------------------------------------------------------
+;
+; these are the extension service functions provided for the debugger
+;
+;--------------------------------------------------------------------
+
+     DebugExtensionNotify
+     DebugExtensionInitialize
+     DebugExtensionUninitialize
