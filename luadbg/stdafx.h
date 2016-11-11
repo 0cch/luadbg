@@ -15,6 +15,7 @@
 #include <atlstr.h>
 #include <atlpath.h>
 #include <engextcpp.hpp>
+#include <Dbghelp.h>
 #include "wdbgexts.h"
 #include "dbgeng.h"
 

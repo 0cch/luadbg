@@ -13,6 +13,9 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
+    <Filter Include="luasrc">
+      <UniqueIdentifier>{9c3a7509-54e0-40f9-820a-e90e116425f5}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <None Include="ReadMe.txt" />
@@ -40,6 +43,105 @@
     </ClCompile>
     <ClCompile Include="inc\engextcpp.cpp">
       <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="lua_src\lapi.c">
+      <Filter>luasrc</Filter>
+    </ClCompile>
+    <ClCompile Include="lua_src\lauxlib.c">
+      <Filter>luasrc</Filter>
+    </ClCompile>
+    <ClCompile Include="lua_src\lbaselib.c">
+      <Filter>luasrc</Filter>
+    </ClCompile>
+    <ClCompile Include="lua_src\lbitlib.c">
+      <Filter>luasrc</Filter>
+    </ClCompile>
+    <ClCompile Include="lua_src\lcode.c">
+      <Filter>luasrc</Filter>
+    </ClCompile>
+    <ClCompile Include="lua_src\lcorolib.c">
+      <Filter>luasrc</Filter>
+    </ClCompile>
+    <ClCompile Include="lua_src\lctype.c">
+      <Filter>luasrc</Filter>
+    </ClCompile>
+    <ClCompile Include="lua_src\ldblib.c">
+      <Filter>luasrc</Filter>
+    </ClCompile>
+    <ClCompile Include="lua_src\ldebug.c">
+      <Filter>luasrc</Filter>
+    </ClCompile>
+    <ClCompile Include="lua_src\ldo.c">
+      <Filter>luasrc</Filter>
+    </ClCompile>
+    <ClCompile Include="lua_src\ldump.c">
+      <Filter>luasrc</Filter>
+    </ClCompile>
+    <ClCompile Include="lua_src\lfunc.c">
+      <Filter>luasrc</Filter>
+    </ClCompile>
+    <ClCompile Include="lua_src\lgc.c">
+      <Filter>luasrc</Filter>
+    </ClCompile>
+    <ClCompile Include="lua_src\linit.c">
+      <Filter>luasrc</Filter>
+    </ClCompile>
+    <ClCompile Include="lua_src\liolib.c">
+      <Filter>luasrc</Filter>
+    </ClCompile>
+    <ClCompile Include="lua_src\llex.c">
+      <Filter>luasrc</Filter>
+    </ClCompile>
+    <ClCompile Include="lua_src\lmathlib.c">
+      <Filter>luasrc</Filter>
+    </ClCompile>
+    <ClCompile Include="lua_src\lmem.c">
+      <Filter>luasrc</Filter>
+    </ClCompile>
+    <ClCompile Include="lua_src\loadlib.c">
+      <Filter>luasrc</Filter>
+    </ClCompile>
+    <ClCompile Include="lua_src\lobject.c">
+      <Filter>luasrc</Filter>
+    </ClCompile>
+    <ClCompile Include="lua_src\lopcodes.c">
+      <Filter>luasrc</Filter>
+    </ClCompile>
+    <ClCompile Include="lua_src\loslib.c">
+      <Filter>luasrc</Filter>
+    </ClCompile>
+    <ClCompile Include="lua_src\lparser.c">
+      <Filter>luasrc</Filter>
+    </ClCompile>
+    <ClCompile Include="lua_src\lstate.c">
+      <Filter>luasrc</Filter>
+    </ClCompile>
+    <ClCompile Include="lua_src\lstring.c">
+      <Filter>luasrc</Filter>
+    </ClCompile>
+    <ClCompile Include="lua_src\lstrlib.c">
+      <Filter>luasrc</Filter>
+    </ClCompile>
+    <ClCompile Include="lua_src\ltable.c">
+      <Filter>luasrc</Filter>
+    </ClCompile>
+    <ClCompile Include="lua_src\ltablib.c">
+      <Filter>luasrc</Filter>
+    </ClCompile>
+    <ClCompile Include="lua_src\ltm.c">
+      <Filter>luasrc</Filter>
+    </ClCompile>
+    <ClCompile Include="lua_src\lundump.c">
+      <Filter>luasrc</Filter>
+    </ClCompile>
+    <ClCompile Include="lua_src\lutf8lib.c">
+      <Filter>luasrc</Filter>
+    </ClCompile>
+    <ClCompile Include="lua_src\lvm.c">
+      <Filter>luasrc</Filter>
+    </ClCompile>
+    <ClCompile Include="lua_src\lzio.c">
+      <Filter>luasrc</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

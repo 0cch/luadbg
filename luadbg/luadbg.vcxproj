@@ -45,7 +45,7 @@
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
-      <PrecompiledHeader>Use</PrecompiledHeader>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;_USRDLL;LUADBG_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
@@ -61,7 +61,7 @@
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
-      <PrecompiledHeader>Use</PrecompiledHeader>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <Optimization>MaxSpeed</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
@@ -99,6 +99,39 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="luadbg.cpp" />
+    <ClCompile Include="lua_src\lapi.c" />
+    <ClCompile Include="lua_src\lauxlib.c" />
+    <ClCompile Include="lua_src\lbaselib.c" />
+    <ClCompile Include="lua_src\lbitlib.c" />
+    <ClCompile Include="lua_src\lcode.c" />
+    <ClCompile Include="lua_src\lcorolib.c" />
+    <ClCompile Include="lua_src\lctype.c" />
+    <ClCompile Include="lua_src\ldblib.c" />
+    <ClCompile Include="lua_src\ldebug.c" />
+    <ClCompile Include="lua_src\ldo.c" />
+    <ClCompile Include="lua_src\ldump.c" />
+    <ClCompile Include="lua_src\lfunc.c" />
+    <ClCompile Include="lua_src\lgc.c" />
+    <ClCompile Include="lua_src\linit.c" />
+    <ClCompile Include="lua_src\liolib.c" />
+    <ClCompile Include="lua_src\llex.c" />
+    <ClCompile Include="lua_src\lmathlib.c" />
+    <ClCompile Include="lua_src\lmem.c" />
+    <ClCompile Include="lua_src\loadlib.c" />
+    <ClCompile Include="lua_src\lobject.c" />
+    <ClCompile Include="lua_src\lopcodes.c" />
+    <ClCompile Include="lua_src\loslib.c" />
+    <ClCompile Include="lua_src\lparser.c" />
+    <ClCompile Include="lua_src\lstate.c" />
+    <ClCompile Include="lua_src\lstring.c" />
+    <ClCompile Include="lua_src\lstrlib.c" />
+    <ClCompile Include="lua_src\ltable.c" />
+    <ClCompile Include="lua_src\ltablib.c" />
+    <ClCompile Include="lua_src\ltm.c" />
+    <ClCompile Include="lua_src\lundump.c" />
+    <ClCompile Include="lua_src\lutf8lib.c" />
+    <ClCompile Include="lua_src\lvm.c" />
+    <ClCompile Include="lua_src\lzio.c" />
     <ClCompile Include="stdafx.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Create</PrecompiledHeader>
