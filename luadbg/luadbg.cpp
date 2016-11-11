@@ -295,15 +295,18 @@ static int dbgtype_getfieldoffset(lua_State *L)
 	return 1;
 }
 
-static int dbgtype_getref(lua_State *L)
+static int dbgtype_getderef(lua_State *L)
 {
 	DBG_TYPE *m = dbgtype_check(L);
 
-	char expr[2048];
-	sprintf_s(expr, "(%s!%s)0x%I64x", m->ModuleName, m->TypeName, m->Address);
-	ExtRemoteTyped type_obj(expr);
+	ExtRemoteTyped type_obj;
+	type_obj.Set(FALSE, m->ModuleAddr, m->TypeId, m->Address);
 	char type_buffer[1024];
 	ExtRemoteTyped field = *type_obj;
+	if (FAILED(g_ExtInstancePtr->m_Symbols3->GetTypeName(m->ModuleAddr, field.m_Typed.TypeId, type_buffer, 1024, NULL))) {
+		lua_pushnil(L);
+		return 1;
+	}
 
 	DBG_TYPE *new_m = (DBG_TYPE *)lua_newuserdata(L, sizeof(DBG_TYPE));
 
@@ -350,7 +353,6 @@ static const struct luaL_Reg dbgtype_lib [] = {
 
 static int dbgtype___index(lua_State *L)
 {
-	__asm int 3
 	const char *name = luaL_checkstring(L, -1);
 
 	lua_getmetatable(L, -2);
@@ -364,8 +366,6 @@ static int dbgtype___index(lua_State *L)
 	}
 	
 	DBG_TYPE *m = dbgtype_check(L);
-/*	char expr[2048];
-	sprintf_s(expr, "(%s!%s *)0x%I64x", m->ModuleName, m->TypeName, m->Address);*/
 	ExtRemoteTyped type_obj;
 	type_obj.Set(FALSE, m->ModuleAddr, m->TypeId, m->Address);
 	if (type_obj.m_Typed.Tag == SymTagArrayType) {
@@ -408,8 +408,6 @@ static int dbgtype___index(lua_State *L)
 		return 1;
 	}
 
-	
-	
 	ExtRemoteTyped field = type_obj.Field(name);
 	
 	if (field.m_Typed.Tag == SymTagPointerType) {
@@ -459,8 +457,8 @@ int luaopen_dbgtype(lua_State *L)
 	lua_pushcfunction(L, dbgtype_getname);
 	lua_settable(L, -3);
 
-	lua_pushstring(L, "ref");
-	lua_pushcfunction(L, dbgtype_getref);
+	lua_pushstring(L, "deref");
+	lua_pushcfunction(L, dbgtype_getderef);
 	lua_settable(L, -3);
 
 	lua_pushstring(L, "fieldoffset");
