@@ -9,6 +9,7 @@ class EXT_CLASS : public ExtExtension
 {
 public:
 	EXT_COMMAND_METHOD(lua);
+	EXT_COMMAND_METHOD(luacmd);
 };
 
 EXT_DECLARE_GLOBALS();
@@ -869,7 +870,6 @@ EXT_COMMAND(lua,
 	"Execute lua file.",
 	"{;x,r;path;Execute lua file path.}")
 {
-	SymInitialize(GetCurrentProcess(), NULL, TRUE);
 	LPCSTR path = GetUnnamedArgStr(0);
 	lua_State* L = luaL_newstate();
 	luaL_openlibs(L);
@@ -882,5 +882,33 @@ EXT_COMMAND(lua,
 		Err("lua error: %s\r\n", lua_tostring(L, -1));
 	}
 	
+	lua_close(L);
+}
+
+EXT_COMMAND(luacmd,
+	"Input lua command.",
+	"")
+{
+	lua_State* L = luaL_newstate();
+	luaL_openlibs(L);
+	SetDefaultPrint(L);
+	luaopen_dbgmodule(L);
+	luaopen_dbgtype(L);
+	luaopen_dbgreg(L);
+	luaopen_dbgmem(L);
+
+	CHAR buffer[0x1000] = {0};
+	ULONG input_length = 0;
+	while (SUCCEEDED(m_Control4->Input(buffer, 0x1000, &input_length))) {
+		if (strcmp(buffer, "quit()") == 0) {
+			buffer[0] = 0;
+			input_length = 0;
+			break;
+		}
+		luaL_dostring(L, buffer);
+		buffer[0] = 0;
+		input_length = 0;
+	}
+
 	lua_close(L);
 }

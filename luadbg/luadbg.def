@@ -11,3 +11,4 @@ EXPORTS
      DebugExtensionNotify
      DebugExtensionInitialize
      DebugExtensionUninitialize
+	 luacmd
