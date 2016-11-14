@@ -1,0 +1,15 @@
+a = dbgmem.new(0x0012f37c , 0x20)
+print(a:offset())
+print(a:size())
+print(a:cachedsize())
+print(a[0], a[1])
+t = a[1]
+a[1] = a[0]
+a[0] = t
+print(a[0], a[1])
+print(a:tohexstring())
+print(a:fromhexstring("FFEE"))
+print(a:getstring())
+c = "abc\123\0cba"
+a:setstring(c)
+
