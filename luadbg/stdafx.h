@@ -14,6 +14,7 @@
 #include <atlbase.h>
 #include <atlstr.h>
 #include <atlpath.h>
+#include <atlenc.h>
 #include <engextcpp.hpp>
 #include <Dbghelp.h>
 #include "wdbgexts.h"

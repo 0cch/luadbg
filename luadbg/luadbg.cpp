@@ -651,6 +651,220 @@ int luaopen_dbgreg(lua_State *L)
 }
 
 
+/************************************************************************/
+/*                        dbgmem                                        */
+/************************************************************************/
+
+
+typedef struct _DBG_MEM {
+	ULONG64 Offset;
+	ULONG Size;
+	ULONG CachedSize;
+	UCHAR Buffer[1];
+} DBG_MEM;
+
+static int dbgmem_new(lua_State *L)
+{
+	ULONG64 offset = luaL_checkinteger(L, 1);
+	ULONG mem_size = (ULONG)luaL_checkinteger(L, 2);
+	
+	UCHAR *buffer = (UCHAR *)malloc(mem_size);
+	if (buffer == NULL) {
+		lua_pushnil(L);
+		return 1;
+	}
+
+	ULONG cached_size = 0;
+	if (FAILED(g_Ext->m_Data->ReadVirtual(offset, buffer, mem_size, &cached_size))) {
+		free(buffer);
+		lua_pushnil(L);
+		return 1;
+	}
+
+	DBG_MEM *m = (DBG_MEM *)lua_newuserdata(L, sizeof(DBG_MEM) + cached_size - 1);
+
+	luaL_getmetatable(L, "dbgmem.metatable");
+	lua_setmetatable(L, -2);
+
+	m->Offset = offset;
+	m->Size = mem_size;
+	m->CachedSize = cached_size;
+	CopyMemory(m->Buffer, buffer, cached_size);
+
+	free(buffer);
+
+	return 1;
+}
+
+static DBG_MEM *dbgmem_check(lua_State *L) 
+{
+	void *ud = luaL_checkudata(L, 1, "dbgmem.metatable");
+	luaL_argcheck(L, ud != NULL, 1, "`dbgmem' expected");
+	return (DBG_MEM *)ud;
+}
+
+static int dbgmem_getoffset(lua_State *L)
+{
+	DBG_MEM *m = dbgmem_check(L);
+	lua_pushinteger(L, m->Offset);
+	return 1;
+}
+
+static int dbgmem_getsize(lua_State *L)
+{
+	DBG_MEM *m = dbgmem_check(L);
+	lua_pushinteger(L, m->Size);
+	return 1;
+}
+
+static int dbgmem_getcachedsize(lua_State *L)
+{
+	DBG_MEM *m = dbgmem_check(L);
+	lua_pushinteger(L, m->Size);
+	return 1;
+}
+
+static int dbgmem_getstring(lua_State *L)
+{
+	DBG_MEM *m = dbgmem_check(L);
+	lua_pushlstring(L, (char *)m->Buffer, m->CachedSize);
+	return 1;
+}
+
+static int dbgmem_tohexstring(lua_State *L)
+{
+	DBG_MEM *m = dbgmem_check(L);
+	
+	int hex_str_len = AtlHexEncodeGetRequiredLength(m->CachedSize);
+	CStringA hex_str;
+	
+	int encode_length = hex_str_len;
+	AtlHexEncode(m->Buffer, m->CachedSize, hex_str.GetBufferSetLength(hex_str_len), &encode_length);
+	hex_str.ReleaseBuffer(encode_length);
+
+	lua_pushstring(L, hex_str.GetString());
+
+	return 1;
+}
+
+static int dbgmem_fromhexstring(lua_State *L)
+{
+	DBG_MEM *m = dbgmem_check(L);
+	const char* hex_str = luaL_checkstring(L, 2);
+
+	int hex_buffer_len = AtlHexDecodeGetRequiredLength(strlen(hex_str));
+	if ((ULONG)hex_buffer_len > m->CachedSize) {
+		return 0;
+	}
+
+	int decode_length = hex_buffer_len;
+	AtlHexDecode(hex_str, strlen(hex_str), m->Buffer, &decode_length);
+	g_Ext->m_Data->WriteVirtual(m->Offset, (PVOID)m->Buffer, m->CachedSize, NULL);
+
+	return 0;
+}
+
+static int dbgmem_setstring(lua_State *L)
+{
+	DBG_MEM *m = dbgmem_check(L);
+	const char* buffer = luaL_checkstring(L, 2);
+	ULONG mem_size = (ULONG)lua_rawlen(L, 2);
+
+	if (mem_size > m->CachedSize) {
+		return 0;
+	}
+
+	ULONG cached_size = 0;
+	g_Ext->m_Data->WriteVirtual(m->Offset, (PVOID)buffer, mem_size, &cached_size);
+	CopyMemory(m->Buffer, buffer, cached_size);
+	return 0;
+}
+
+static const struct luaL_Reg dbgmem_lib [] = {
+	{"new", dbgmem_new},
+	{NULL, NULL}
+};
+
+static int dbgmem___index(lua_State *L)
+{
+	const char *member_name = luaL_checkstring(L, -1);
+
+	lua_getmetatable(L, -2);
+	lua_pushstring(L, member_name);
+	lua_rawget(L,-2);
+	lua_remove(L,-2);
+	if (lua_isfunction(L, -1))
+	{
+		lua_remove(L, -2);
+		return 1;
+	}
+	DBG_MEM *m = dbgmem_check(L);
+	
+	ULONG index = atoi(member_name);
+	if (index >= m->CachedSize) {
+		lua_pushnil(L);
+		return 1;
+	}
+
+	lua_pushinteger(L, m->Buffer[index]);
+	return 1;
+}
+
+static int dbgmem___newindex(lua_State *L)
+{
+	const char *member_name = luaL_checkstring(L, -2);
+	UCHAR data = (UCHAR)luaL_checkinteger(L, -1);
+	DBG_MEM *m = dbgmem_check(L);
+
+	ULONG index = atoi(member_name);
+	if (index >= m->CachedSize) {
+		return 0;
+	}
+	m->Buffer[index] = data;
+	g_Ext->m_Data->WriteVirtual(m->Offset, m->Buffer, m->CachedSize, NULL);
+	return 0;
+}
+
+static int dbgmem_update(lua_State *L)
+{
+	DBG_MEM *m = dbgmem_check(L);
+	g_Ext->m_Data->ReadVirtual(m->Offset, m->Buffer, m->CachedSize, NULL);
+	return 0;
+} 
+
+static const struct luaL_Reg dbgmem_func[] = {
+	{ "__index", dbgmem___index },
+	{ "__newindex", dbgmem___newindex },
+	{ "offset", dbgmem_getoffset },
+	{ "size", dbgmem_getsize },
+	{ "cachedsize", dbgmem_getcachedsize },
+	{ "getstring", dbgmem_getstring },
+	{ "setstring", dbgmem_setstring },
+	{ "update", dbgmem_update },
+	{ "tohexstring", dbgmem_tohexstring },
+	{ "fromhexstring", dbgmem_fromhexstring },
+	{ NULL, NULL }
+};
+
+int luaopen_dbgmem(lua_State *L) 
+{
+	int p = luaL_newmetatable(L, "dbgmem.metatable");
+
+	for (const luaL_Reg *l = dbgmem_func; l->name != NULL; l++) {
+		lua_pushstring(L, l->name);
+		lua_pushcfunction(L, l->func);
+		lua_settable(L, -3);
+	}
+
+	lua_newtable(L);
+	luaL_setfuncs(L, dbgmem_lib, 0);
+	lua_setglobal(L, "dbgmem");
+	return 1;
+}
+
+
+
+
 EXT_COMMAND(lua,
 	"Execute lua file.",
 	"{;x,r;path;Execute lua file path.}")
@@ -663,6 +877,7 @@ EXT_COMMAND(lua,
 	luaopen_dbgmodule(L);
 	luaopen_dbgtype(L);
 	luaopen_dbgreg(L);
+	luaopen_dbgmem(L);
 	if (luaL_dofile(L, path) != 0) {
 		Err("lua error: %s\r\n", lua_tostring(L, -1));
 	}
