@@ -864,6 +864,386 @@ int luaopen_dbgmem(lua_State *L)
 }
 
 
+/************************************************************************/
+/*                        dbg                                           */
+/************************************************************************/
+
+int	exec(lua_State* L)
+{
+	const char* cmd = luaL_checkstring(L, 1);
+	g_Ext->m_Control->Execute(DEBUG_OUTCTL_ALL_CLIENTS |
+		DEBUG_OUTCTL_OVERRIDE_MASK |
+		DEBUG_OUTCTL_NOT_LOGGED,
+		cmd,
+		DEBUG_EXECUTE_DEFAULT);
+
+	return 0;
+}
+
+int	readbyte(lua_State* L)
+{
+	BOOL ret = FALSE;
+	ULONG data = 0;
+	ULONG return_length = 0;
+	ULONG64 offset = luaL_checkinteger(L, 1);
+	HRESULT hr = g_Ext->m_Data->ReadVirtual((ULONG64)offset, &data, 1, &return_length);
+	if (SUCCEEDED(hr)) {
+		ret = TRUE;
+	}
+
+	if (ret) {
+		lua_pushinteger(L, data);
+	}
+	else {
+		lua_pushnil(L);
+	}
+
+	return 1;
+}
+
+int	readword(lua_State* L)
+{
+	BOOL ret = FALSE;
+	ULONG data = 0;
+	ULONG return_length = 0;
+	ULONG64 offset = luaL_checkinteger(L, 1);
+	HRESULT hr = g_Ext->m_Data->ReadVirtual((ULONG64)offset, &data, 2, &return_length);
+	if (SUCCEEDED(hr)) {
+		ret = TRUE;
+	}
+
+	if (ret) {
+		lua_pushinteger(L, data);
+	}
+	else {
+		lua_pushnil(L);
+	}
+	return 1;
+}
+
+int	readdword(lua_State* L)
+{
+	BOOL ret = FALSE;
+	ULONG data = 0;
+	ULONG return_length = 0;
+	ULONG64 offset = luaL_checkinteger(L, 1);
+	HRESULT hr = g_Ext->m_Data->ReadVirtual((ULONG64)offset, &data, 4, &return_length);
+	if (SUCCEEDED(hr)) {
+		ret = TRUE;
+	}
+
+	if (ret) {
+		lua_pushinteger(L, data);
+	}
+	else {
+		lua_pushnil(L);
+	}
+	return 1;
+}
+
+int	readqword(lua_State* L)
+{
+	BOOL ret = FALSE;
+	ULONG64 data = 0;
+	ULONG return_length = 0;
+	ULONG64 offset = luaL_checkinteger(L, 1);
+	HRESULT hr = g_Ext->m_Data->ReadVirtual((ULONG64)offset, &data, 8, &return_length);
+	if (SUCCEEDED(hr)) {
+		ret = TRUE;
+	}
+
+	if (ret) {
+		lua_pushinteger(L, data);
+	}
+	else {
+		lua_pushnil(L);
+	}
+	return 1;
+}
+
+int	writebyte(lua_State* L)
+{
+	ULONG return_length = 0;
+	ULONG64 offset = luaL_checkinteger(L, 1);
+	ULONG64 data = luaL_checkinteger(L, 2);
+	g_Ext->m_Data->WriteVirtual((ULONG64)offset, &data, 1, &return_length);
+	return 0;
+}
+
+int	writeword(lua_State* L)
+{
+	ULONG return_length = 0;
+	ULONG64 offset = luaL_checkinteger(L, 1);
+	ULONG64 data = luaL_checkinteger(L, 2);
+	g_Ext->m_Data->WriteVirtual((ULONG64)offset, &data, 2, &return_length);
+	return 0;
+}
+
+int	writedword(lua_State* L)
+{
+	ULONG return_length = 0;
+	ULONG64 offset = luaL_checkinteger(L, 1);
+	ULONG64 data = luaL_checkinteger(L, 2);
+	g_Ext->m_Data->WriteVirtual((ULONG64)offset, &data, 4, &return_length);
+	return 0;
+}
+
+int	writeqword(lua_State* L)
+{
+	ULONG return_length = 0;
+	ULONG64 offset = luaL_checkinteger(L, 1);
+	ULONG64 data = luaL_checkinteger(L, 2);
+	g_Ext->m_Data->WriteVirtual((ULONG64)offset, &data, 8, &return_length);
+	return 0;
+}
+
+int readunicode(lua_State* L)
+{
+	CStringW unicode_string;
+	WCHAR temp_char;
+	ULONG return_length;
+	ULONG64 offset = luaL_checkinteger(L, 1);
+	for (INT i = 0; i < 0x1000; i++) {
+		HRESULT hr = g_Ext->m_Data->ReadVirtual((ULONG64)(offset + i * sizeof(WCHAR)),
+			&temp_char, sizeof(WCHAR), &return_length);
+		if (temp_char == L'\0' || FAILED(hr)) {
+			break;
+		}
+		unicode_string += temp_char;
+	}
+
+	lua_pushstring(L, CW2A(unicode_string));
+	return 1;
+}
+
+int readascii(lua_State* L)
+{
+	CStringA ascii_string;
+	CHAR temp_char;
+	ULONG return_length;
+	ULONG64 offset = luaL_checkinteger(L, 1);
+	for (INT i = 0; i < 1024; i++) {
+		HRESULT hr = g_Ext->m_Data->ReadVirtual((ULONG64)(offset + i * sizeof(CHAR)),
+			&temp_char, sizeof(CHAR), &return_length);
+		if (temp_char == '\0' || FAILED(hr)) {
+			break;
+		}
+		ascii_string += temp_char;
+	}
+
+	lua_pushstring(L, ascii_string);
+	return 1;
+}
+
+int wait(lua_State* L)
+{
+	g_Ext->m_Control->WaitForEvent(0, INFINITE);
+	return 0;
+}
+
+int evalmasm(lua_State* L)
+{
+	BOOL ret = FALSE;
+	ULONG64 eval_ret = 0;
+	const char* string = luaL_checkstring(L, 1);
+	DEBUG_VALUE debug_value = { 0 };
+	ULONG old_type;
+	ULONG return_index;
+	g_Ext->m_Control3->GetExpressionSyntax(&old_type);
+	g_Ext->m_Control3->SetExpressionSyntax(DEBUG_EXPR_MASM);
+
+	HRESULT hr = g_Ext->m_Control3->Evaluate(string, DEBUG_VALUE_INT32, &debug_value, &return_index);
+	if (SUCCEEDED(hr)) {
+		if (debug_value.Type == DEBUG_VALUE_INT8) {
+			eval_ret = debug_value.I8;
+			ret = TRUE;
+		}
+		else if (debug_value.Type == DEBUG_VALUE_INT16) {
+			eval_ret = debug_value.I16;
+			ret = TRUE;
+		}
+		else if (debug_value.Type == DEBUG_VALUE_INT32) {
+			eval_ret = debug_value.I32;
+			ret = TRUE;
+		}
+		else if (debug_value.Type == DEBUG_VALUE_INT64) {
+			eval_ret = debug_value.I64;
+			ret = TRUE;
+		}
+		else {
+			g_Ext->Err("Lua dose not support this value.\n");
+		}
+	}
+	else {
+		g_Ext->Err("Cannot evaluate value.\n");
+	}
+
+	g_Ext->m_Control3->SetExpressionSyntax(old_type);
+
+	if (ret) {
+		lua_pushinteger(L, eval_ret);
+	}
+	else {
+		lua_pushnil(L);
+	}
+
+	return 1;
+}
+
+int evalcpp(lua_State* L)
+{
+	BOOL ret = FALSE;
+	ULONG64 eval_ret = 0;
+	const char* string = luaL_checkstring(L, 1);
+	DEBUG_VALUE debug_value = { 0 };
+	ULONG old_type;
+	ULONG return_index;
+	g_Ext->m_Control3->GetExpressionSyntax(&old_type);
+	g_Ext->m_Control3->SetExpressionSyntax(DEBUG_EXPR_CPLUSPLUS);
+
+	HRESULT hr = g_Ext->m_Control3->Evaluate(string, DEBUG_VALUE_INT32, &debug_value, &return_index);
+	if (SUCCEEDED(hr)) {
+		if (debug_value.Type == DEBUG_VALUE_INT8) {
+			eval_ret = debug_value.I8;
+			ret = TRUE;
+		}
+		else if (debug_value.Type == DEBUG_VALUE_INT16) {
+			eval_ret = debug_value.I16;
+			ret = TRUE;
+		}
+		else if (debug_value.Type == DEBUG_VALUE_INT32) {
+			eval_ret = debug_value.I32;
+			ret = TRUE;
+		}
+		else if (debug_value.Type == DEBUG_VALUE_INT64) {
+			eval_ret = debug_value.I64;
+			ret = TRUE;
+		}
+		else {
+			g_Ext->Err("Lua dose not support this value.\n");
+		}
+	}
+	else {
+		g_Ext->Err("Cannot evaluate value.\n");
+	}
+
+	g_Ext->m_Control3->SetExpressionSyntax(old_type);
+	if (ret) {
+		lua_pushinteger(L, eval_ret);
+	}
+	else {
+		lua_pushnil(L);
+	}
+
+	return 1;
+}
+
+UCHAR CharToDigital(CHAR c)
+{
+	UCHAR ret;
+	if (c >= '0' && c <= '9') {
+		ret = c - '0';
+	}
+	else if (c >= 'a' && c <= 'f') {
+		ret = c - 'a' + 10;
+	}
+	else if (c >= 'A' && c <= 'F') {
+		ret = c - 'A' + 10;
+	}
+	
+	return ret;
+}
+
+int StringToBytes(LPCSTR hex_str, CAutoVectorPtr<UCHAR> &hex_buffer)
+{
+	CStringA pure_hex_str;
+	int hex_str_length = strlen(hex_str);
+	CHAR current_char;
+	int i;
+	for (i = 0; i < hex_str_length; i++) {
+		current_char = hex_str[i];
+		if ((current_char >= '0' && current_char <= '9') ||
+			(current_char >= 'a' && current_char <= 'f') ||
+			(current_char >= 'A' && current_char <= 'F')) {
+			pure_hex_str += current_char;
+		}
+		else if (current_char == ' ' ||
+			current_char == '\t' ||
+			current_char == '\r' ||
+			current_char == '\n') {
+			continue;
+		}
+		else {
+			return 0;
+		}
+	}
+
+	if (pure_hex_str.GetLength() % 2 != 0) {
+		return 0;
+	}
+
+	int buffer_length = pure_hex_str.GetLength() / 2;
+	if (!hex_buffer.Allocate(buffer_length)) {
+		return 0;
+	}
+
+	for (i = 0; i < pure_hex_str.GetLength(); i += 2) {
+		hex_buffer[i / 2] = CharToDigital(pure_hex_str[i]);
+		hex_buffer[i / 2] <<= 4;
+		hex_buffer[i / 2] |= CharToDigital(pure_hex_str[i + 1]);
+	}
+
+	return buffer_length;
+}
+
+int search(lua_State* L)
+{
+	BOOL ret = FALSE;
+	ULONG64 match_offset = 0;
+	ULONG64 search_offset = luaL_checkinteger(L, 1);
+	ULONG64 search_length = luaL_checkinteger(L, 2);
+	const char* string = luaL_checkstring(L, 3);
+
+	CAutoVectorPtr<UCHAR> hex_buffer;
+	int hex_buffer_length = StringToBytes(string, hex_buffer);
+	if (hex_buffer_length != 0) {
+		HRESULT hr = g_Ext->m_Data->SearchVirtual((ULONG64)search_offset,
+			(ULONG64)search_length, hex_buffer.m_p, hex_buffer_length, 1, &match_offset);
+		if (hr == S_OK) {
+			ret = TRUE;
+		}
+	}
+	else {
+		g_Ext->Err("Search bytes error.\n");
+	}
+
+	if (ret) {
+		lua_pushinteger(L, (int)match_offset);
+	}
+	else {
+		lua_pushnil(L);
+	}
+
+	return 1;
+}
+
+static const struct luaL_Reg dbgbasic_func[] =
+{
+	{ "exec", exec },
+	{ "readbyte", readbyte },
+	{ "readword", readword },
+	{ "readdword", readdword },
+	{ "writebyte", writebyte },
+	{ "writeword", writeword },
+	{ "writedword", writedword },
+	{ "readunicode", readunicode },
+	{ "readascii", readascii },
+	{ "wait", wait },
+	{ "evalmasm", evalmasm },
+	{ "evalcpp", evalcpp },
+	{ "search", search },
+	{ NULL, NULL }
+};
 
 
 EXT_COMMAND(lua,
@@ -878,6 +1258,11 @@ EXT_COMMAND(lua,
 	luaopen_dbgtype(L);
 	luaopen_dbgreg(L);
 	luaopen_dbgmem(L);
+
+	lua_pushglobaltable(L);
+	luaL_setfuncs(L, dbgbasic_func, 0);
+	lua_pop(L, 1);
+
 	if (luaL_dofile(L, path) != 0) {
 		Err("lua error: %s\r\n", lua_tostring(L, -1));
 	}
@@ -897,9 +1282,19 @@ EXT_COMMAND(luacmd,
 	luaopen_dbgreg(L);
 	luaopen_dbgmem(L);
 
+	lua_pushglobaltable(L);
+	luaL_setfuncs(L, dbgbasic_func, 0);
+	lua_pop(L, 1);
+
 	CHAR buffer[0x1000] = {0};
 	ULONG input_length = 0;
 	while (SUCCEEDED(m_Control4->Input(buffer, 0x1000, &input_length))) {
+		CStringA backspace;
+		for (ULONG i = 0; i < input_length; i++) {
+			backspace.Append("\b");
+		}
+		Out(backspace.GetString());
+		
 		if (strcmp(buffer, "quit()") == 0) {
 			buffer[0] = 0;
 			input_length = 0;
