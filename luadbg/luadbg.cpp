@@ -868,7 +868,7 @@ int luaopen_dbgmem(lua_State *L)
 /*                        dbg                                           */
 /************************************************************************/
 
-int	exec(lua_State* L)
+static int exec(lua_State* L)
 {
 	const char* cmd = luaL_checkstring(L, 1);
 	g_Ext->m_Control->Execute(DEBUG_OUTCTL_ALL_CLIENTS |
@@ -880,7 +880,7 @@ int	exec(lua_State* L)
 	return 0;
 }
 
-int	readbyte(lua_State* L)
+static int readbyte(lua_State* L)
 {
 	BOOL ret = FALSE;
 	ULONG data = 0;
@@ -901,7 +901,7 @@ int	readbyte(lua_State* L)
 	return 1;
 }
 
-int	readword(lua_State* L)
+static int readword(lua_State* L)
 {
 	BOOL ret = FALSE;
 	ULONG data = 0;
@@ -921,7 +921,7 @@ int	readword(lua_State* L)
 	return 1;
 }
 
-int	readdword(lua_State* L)
+static int readdword(lua_State* L)
 {
 	BOOL ret = FALSE;
 	ULONG data = 0;
@@ -941,7 +941,7 @@ int	readdword(lua_State* L)
 	return 1;
 }
 
-int	readqword(lua_State* L)
+static int readqword(lua_State* L)
 {
 	BOOL ret = FALSE;
 	ULONG64 data = 0;
@@ -961,7 +961,7 @@ int	readqword(lua_State* L)
 	return 1;
 }
 
-int	writebyte(lua_State* L)
+static int writebyte(lua_State* L)
 {
 	ULONG return_length = 0;
 	ULONG64 offset = luaL_checkinteger(L, 1);
@@ -970,7 +970,7 @@ int	writebyte(lua_State* L)
 	return 0;
 }
 
-int	writeword(lua_State* L)
+static int writeword(lua_State* L)
 {
 	ULONG return_length = 0;
 	ULONG64 offset = luaL_checkinteger(L, 1);
@@ -979,7 +979,7 @@ int	writeword(lua_State* L)
 	return 0;
 }
 
-int	writedword(lua_State* L)
+static int writedword(lua_State* L)
 {
 	ULONG return_length = 0;
 	ULONG64 offset = luaL_checkinteger(L, 1);
@@ -988,7 +988,7 @@ int	writedword(lua_State* L)
 	return 0;
 }
 
-int	writeqword(lua_State* L)
+static int writeqword(lua_State* L)
 {
 	ULONG return_length = 0;
 	ULONG64 offset = luaL_checkinteger(L, 1);
@@ -997,7 +997,7 @@ int	writeqword(lua_State* L)
 	return 0;
 }
 
-int readunicode(lua_State* L)
+static int readunicode(lua_State* L)
 {
 	CStringW unicode_string;
 	WCHAR temp_char;
@@ -1016,7 +1016,7 @@ int readunicode(lua_State* L)
 	return 1;
 }
 
-int readascii(lua_State* L)
+static int readascii(lua_State* L)
 {
 	CStringA ascii_string;
 	CHAR temp_char;
@@ -1035,13 +1035,13 @@ int readascii(lua_State* L)
 	return 1;
 }
 
-int wait(lua_State* L)
+static int wait(lua_State* L)
 {
 	g_Ext->m_Control->WaitForEvent(0, INFINITE);
 	return 0;
 }
 
-int evalmasm(lua_State* L)
+static int evalmasm(lua_State* L)
 {
 	BOOL ret = FALSE;
 	ULONG64 eval_ret = 0;
@@ -1090,7 +1090,7 @@ int evalmasm(lua_State* L)
 	return 1;
 }
 
-int evalcpp(lua_State* L)
+static int evalcpp(lua_State* L)
 {
 	BOOL ret = FALSE;
 	ULONG64 eval_ret = 0;
@@ -1138,7 +1138,7 @@ int evalcpp(lua_State* L)
 	return 1;
 }
 
-UCHAR CharToDigital(CHAR c)
+static UCHAR CharToDigital(CHAR c)
 {
 	UCHAR ret;
 	if (c >= '0' && c <= '9') {
@@ -1154,7 +1154,7 @@ UCHAR CharToDigital(CHAR c)
 	return ret;
 }
 
-int StringToBytes(LPCSTR hex_str, CAutoVectorPtr<UCHAR> &hex_buffer)
+static int StringToBytes(LPCSTR hex_str, CAutoVectorPtr<UCHAR> &hex_buffer)
 {
 	CStringA pure_hex_str;
 	int hex_str_length = strlen(hex_str);
@@ -1196,7 +1196,7 @@ int StringToBytes(LPCSTR hex_str, CAutoVectorPtr<UCHAR> &hex_buffer)
 	return buffer_length;
 }
 
-int search(lua_State* L)
+static int search(lua_State* L)
 {
 	BOOL ret = FALSE;
 	ULONG64 match_offset = 0;
@@ -1227,6 +1227,23 @@ int search(lua_State* L)
 	return 1;
 }
 
+static int get_symbolnamebyoffset(lua_State* L)
+{
+	ULONG64 offset = luaL_checkinteger(L, 1);
+	char name[1024] = {0};
+	ULONG name_length = sizeof(name);
+	ULONG64 disp = 0;
+	if (FAILED(g_Ext->m_Symbols->GetNameByOffset(offset, name, sizeof(name), &name_length, &disp))) {
+		lua_pushnil(L);
+		return 1;
+	}
+
+	CStringA sym_str;
+	sym_str.Format("%s+0x%I64x", name, disp);
+	lua_pushstring(L, sym_str.GetString());
+	return 1;
+}
+
 static const struct luaL_Reg dbgbasic_func[] =
 {
 	{ "exec", exec },
@@ -1242,6 +1259,7 @@ static const struct luaL_Reg dbgbasic_func[] =
 	{ "evalmasm", evalmasm },
 	{ "evalcpp", evalcpp },
 	{ "search", search },
+	{ "get_symbolnamebyoffset", get_symbolnamebyoffset },
 	{ NULL, NULL }
 };
 
