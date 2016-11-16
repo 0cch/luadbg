@@ -1244,15 +1244,30 @@ static int get_symbolnamebyoffset(lua_State* L)
 	return 1;
 }
 
+static int get_symboloffsetbyname(lua_State* L)
+{
+	const char *name = luaL_checkstring(L, 1);
+	ULONG64 offset = 0;
+	if (FAILED(g_Ext->m_Symbols->GetOffsetByName(name, &offset))) {
+		lua_pushnil(L);
+		return 1;
+	}
+
+	lua_pushinteger(L, offset);
+	return 1;
+}
+
 static const struct luaL_Reg dbgbasic_func[] =
 {
 	{ "exec", exec },
 	{ "readbyte", readbyte },
 	{ "readword", readword },
 	{ "readdword", readdword },
+	{ "readqword", readqword },
 	{ "writebyte", writebyte },
 	{ "writeword", writeword },
 	{ "writedword", writedword },
+	{ "writeqword", writeqword },
 	{ "readunicode", readunicode },
 	{ "readascii", readascii },
 	{ "wait", wait },
@@ -1260,6 +1275,7 @@ static const struct luaL_Reg dbgbasic_func[] =
 	{ "evalcpp", evalcpp },
 	{ "search", search },
 	{ "get_symbolnamebyoffset", get_symbolnamebyoffset },
+	{ "get_symboloffsetbyname", get_symboloffsetbyname },
 	{ NULL, NULL }
 };
 
