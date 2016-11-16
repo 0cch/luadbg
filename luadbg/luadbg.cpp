@@ -19,6 +19,7 @@ static int dbgprint(lua_State* L)
 	int nargs = lua_gettop(L);
 	for (int i=1; i <= nargs; ++i) {
 		g_Ext->Out(lua_tostring(L, i));
+		g_Ext->Out("\t");
 	}
 	g_Ext->Out("\r\n");
 

@@ -3,7 +3,7 @@ print("a name=",a:name())
 print("a addr=",a:addr())
 print("a NtCreateFile=", a.NtCreateFile)
 
-b = dbgtype.new("ntdll!_peb", 0x04539000)
+b = dbgtype.new("ntdll!_peb", evalmasm("@$peb"))
 print("_peb name=", b:name())
 print("_peb addr=", b:addr())
 print("_peb size=", b:size())
