@@ -754,13 +754,13 @@ static int dbgmem_fromhexstring(lua_State *L)
 	DBG_MEM *m = dbgmem_check(L);
 	const char* hex_str = luaL_checkstring(L, 2);
 
-	int hex_buffer_len = AtlHexDecodeGetRequiredLength(strlen(hex_str));
+	int hex_buffer_len = AtlHexDecodeGetRequiredLength((int)strlen(hex_str));
 	if ((ULONG)hex_buffer_len > m->CachedSize) {
 		return 0;
 	}
 
 	int decode_length = hex_buffer_len;
-	AtlHexDecode(hex_str, strlen(hex_str), m->Buffer, &decode_length);
+	AtlHexDecode(hex_str, (int)strlen(hex_str), m->Buffer, &decode_length);
 	g_Ext->m_Data->WriteVirtual(m->Offset, (PVOID)m->Buffer, m->CachedSize, NULL);
 
 	return 0;
@@ -879,6 +879,18 @@ static int exec(lua_State* L)
 		DEBUG_EXECUTE_DEFAULT);
 
 	return 0;
+}
+
+static int exec_tostring(lua_State* L)
+{
+	const char* cmd = luaL_checkstring(L, 1);
+	ExtCaptureOutputA capture_exec;
+	capture_exec.Execute(cmd);
+	LPCSTR out_text = capture_exec.GetTextNonNull();
+
+	lua_pushstring(L, out_text);
+
+	return 1;
 }
 
 static int readbyte(lua_State* L)
@@ -1158,7 +1170,7 @@ static UCHAR CharToDigital(CHAR c)
 static int StringToBytes(LPCSTR hex_str, CAutoVectorPtr<UCHAR> &hex_buffer)
 {
 	CStringA pure_hex_str;
-	int hex_str_length = strlen(hex_str);
+	int hex_str_length = (int)strlen(hex_str);
 	CHAR current_char;
 	int i;
 	for (i = 0; i < hex_str_length; i++) {
@@ -1261,6 +1273,7 @@ static int get_symboloffsetbyname(lua_State* L)
 static const struct luaL_Reg dbgbasic_func[] =
 {
 	{ "exec", exec },
+	{ "exec_tostring", exec_tostring },
 	{ "readbyte", readbyte },
 	{ "readword", readword },
 	{ "readdword", readdword },
