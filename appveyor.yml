@@ -9,11 +9,11 @@ build:
 after_build:
 - cmd: >-
     mkdir bin\x86
-	
+
     mkdir bin\x64
 
     copy Release\luadbg_v15.dll bin\x86\luadbg.dll
-	
+
     copy x64\Release\luadbg_v15.dll bin\x64\luadbg.dll
 
     7z a -tzip luadbg.zip bin\*
