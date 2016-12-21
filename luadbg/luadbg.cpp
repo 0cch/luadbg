@@ -1270,6 +1270,25 @@ static int get_symboloffsetbyname(lua_State* L)
 	return 1;
 }
 
+static int input(lua_State* L)
+{
+	CHAR buffer[0x1000] = {0};
+	ULONG input_length = 0;
+	if (FAILED(g_Ext->m_Control4->Input(buffer, 0x1000, &input_length))) {
+		lua_pushnil(L);
+		return 1;
+	}
+
+	CStringA backspace;
+	for (ULONG i = 0; i < input_length << 1; i++) {
+		backspace.Append("\b");
+	}
+	g_Ext->Out(backspace.GetString());
+
+	lua_pushstring(L, buffer);
+	return 1;
+}
+
 static const struct luaL_Reg dbgbasic_func[] =
 {
 	{ "exec", exec },
@@ -1290,6 +1309,7 @@ static const struct luaL_Reg dbgbasic_func[] =
 	{ "search", search },
 	{ "get_symbolnamebyoffset", get_symbolnamebyoffset },
 	{ "get_symboloffsetbyname", get_symboloffsetbyname },
+	{ "input", input },
 	{ NULL, NULL }
 };
 
