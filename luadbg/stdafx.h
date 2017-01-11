@@ -17,6 +17,9 @@
 #include <atlenc.h>
 #include <engextcpp.hpp>
 #include <Dbghelp.h>
+#include <map>
+#include <set>
+#include <vector>
 #include "wdbgexts.h"
 #include "dbgeng.h"
 

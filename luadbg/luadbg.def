@@ -1,7 +1,11 @@
 LIBRARY
 EXPORTS
 	lua
-
+	luacmd
+	luaload
+	luaunload
+	luado
+	lualist
 ;--------------------------------------------------------------------
 ;
 ; these are the extension service functions provided for the debugger
@@ -11,4 +15,4 @@ EXPORTS
      DebugExtensionNotify
      DebugExtensionInitialize
      DebugExtensionUninitialize
-	 luacmd
+	 

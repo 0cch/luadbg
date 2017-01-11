@@ -10,6 +10,10 @@ class EXT_CLASS : public ExtExtension
 public:
 	EXT_COMMAND_METHOD(lua);
 	EXT_COMMAND_METHOD(luacmd);
+	EXT_COMMAND_METHOD(luaload);
+	EXT_COMMAND_METHOD(luaunload);
+	EXT_COMMAND_METHOD(luado);
+	EXT_COMMAND_METHOD(lualist);
 };
 
 EXT_DECLARE_GLOBALS();
@@ -146,6 +150,205 @@ int luaopen_dbgmodule(lua_State *L)
 	lua_newtable(L);
 	luaL_setfuncs(L, dbgmodule_lib, 0);
 	lua_setglobal(L, "dbgmodule");
+	return 1;
+}
+
+/************************************************************************/
+/*                        dbgthread                                     */
+/************************************************************************/
+
+
+typedef struct _DBG_THREAD {
+	ULONG ThreadDbgId;
+	ULONG ThreadId;
+} DBG_THREAD;
+
+static int dbgthread_new(lua_State *L)
+{
+	ULONG dbgid = (ULONG)luaL_checkinteger(L, 1);
+	ULONG id = 0;
+
+	ULONG thread_count = 0;
+	if (FAILED(g_Ext->m_System->GetNumberThreads(&thread_count))) {
+		lua_pushnil(L);
+		return 1;
+	}
+
+	std::vector<ULONG> dbgids, ids;
+	dbgids.resize(thread_count);
+	ids.resize(thread_count);
+
+	if (FAILED(g_Ext->m_System->GetThreadIdsByIndex(0, thread_count, dbgids.data(), ids.data()))) {
+		lua_pushnil(L);
+		return 1;
+	}
+
+	for (ULONG i = 0; i < thread_count; i++) {
+		if (dbgids[i] == dbgid) {
+			id = ids[i];
+			break;
+		}
+	}
+
+	if (id == 0) {
+		lua_pushnil(L);
+		return 1;
+	}
+
+	DBG_THREAD *m = (DBG_THREAD *)lua_newuserdata(L, sizeof(DBG_THREAD));
+
+	luaL_getmetatable(L, "dbgthread.metatable");
+	lua_setmetatable(L, -2);
+
+	m->ThreadDbgId = dbgid;
+	m->ThreadId = id;
+
+	return 1;
+}
+
+static DBG_THREAD *dbgthread_check(lua_State *L) 
+{
+	void *ud = luaL_checkudata(L, 1, "dbgthread.metatable");
+	luaL_argcheck(L, ud != NULL, 1, "`dbgthread' expected");
+	return (DBG_THREAD *)ud;
+}
+
+static int dbgthread_sysid(lua_State *L)
+{
+	DBG_THREAD *m = dbgthread_check(L);
+	lua_pushinteger(L, m->ThreadId);
+	return 1;
+}
+
+static int dbgthread_dbgid(lua_State *L)
+{
+	DBG_THREAD *m = dbgthread_check(L);
+	lua_pushinteger(L, m->ThreadDbgId);
+	return 1;
+}
+
+static int dbgthread_isvalid(lua_State *L)
+{
+	DBG_THREAD *m = dbgthread_check(L);
+	ULONG id = -1;
+	if (FAILED(g_Ext->m_System->GetThreadIdBySystemId(m->ThreadId, &id))) {
+		lua_pushboolean(L, FALSE);
+		return 1;
+	}
+
+	lua_pushboolean(L, m->ThreadDbgId == id);
+	return 1;
+}
+
+static int dbgthread_currentid(lua_State *L)
+{
+	ULONG id = -1;
+	if (FAILED(g_Ext->m_System->GetCurrentThreadId(&id))) {
+		lua_pushnil(L);
+		return 1;
+	}
+	lua_pushinteger(L, id);
+	return 1;
+}
+
+__inline void lua_pushtable(lua_State* L , const char* key , ULONG64 value) {
+	lua_pushstring(L, key);
+	lua_pushinteger(L, value);
+	lua_settable(L, -3);
+}
+
+static int dbgthread_stack(lua_State *L)
+{
+	DBG_THREAD *m = dbgthread_check(L);
+
+	ULONG current_dtid = 0;
+	g_Ext->m_System->GetCurrentThreadId(&current_dtid);
+	g_Ext->m_System->SetCurrentThreadId(m->ThreadDbgId);
+
+	std::vector<DEBUG_STACK_FRAME> stack_frames;
+	ULONG fill_count = 0;
+	stack_frames.resize(0x1000);
+	g_Ext->m_Control->GetStackTrace(0, 0, 0, stack_frames.data(), 0x1000, &fill_count);
+	g_Ext->m_System->SetCurrentThreadId(current_dtid);
+	if (fill_count == 0) {
+		lua_pushnil(L);
+		return 1;
+	}
+
+	lua_newtable(L);
+	for (ULONG i = 0; i < fill_count; i++) {
+		lua_pushinteger(L, i);
+		lua_newtable(L);
+		lua_pushtable(L, "InstructionOffset", stack_frames[i].InstructionOffset);
+		lua_pushtable(L, "ReturnOffset", stack_frames[i].ReturnOffset);
+		lua_pushtable(L, "FrameOffset", stack_frames[i].FrameOffset);
+		lua_pushtable(L, "StackOffset", stack_frames[i].StackOffset);
+		lua_pushtable(L, "FuncTableEntry", stack_frames[i].FuncTableEntry);
+		lua_pushtable(L, "Virtual", stack_frames[i].Virtual);
+		lua_pushtable(L, "FrameNumber", stack_frames[i].FrameNumber);
+		lua_pushtable(L, "Params0", stack_frames[i].Params[0]);
+		lua_pushtable(L, "Params1", stack_frames[i].Params[1]);
+		lua_pushtable(L, "Params2", stack_frames[i].Params[2]);
+		lua_pushtable(L, "Params3", stack_frames[i].Params[3]);
+		lua_settable(L, -3);
+	}
+
+	return 1;
+}
+
+static int dbgthread_setcurrentid(lua_State *L)
+{
+	ULONG id = (ULONG)luaL_checkinteger(L, 1);
+	g_Ext->m_System->SetCurrentThreadId(id);
+	return 0;
+}
+
+static const struct luaL_Reg dbgthread_lib [] = {
+	{"new", dbgthread_new},
+	{"currentid", dbgthread_currentid},
+	{"setcurrentid", dbgthread_setcurrentid},
+	{NULL, NULL}
+};
+
+static int dbgthread___index(lua_State *L)
+{
+	const char *member_name = luaL_checkstring(L, -1);
+
+	lua_getmetatable(L, -2);
+	lua_pushstring(L, member_name);
+	lua_rawget(L,-2);
+	lua_remove(L,-2);
+	if (lua_isfunction(L, -1))
+	{
+		lua_remove(L, -2);
+		return 1;
+	}
+	lua_pushnil(L);
+	return 1;
+}
+
+static const struct luaL_Reg dbgthread_func[] = {
+	{ "__index", dbgthread___index },
+	{ "addr", dbgthread_dbgid },
+	{ "name", dbgthread_sysid },
+	{ "isvalid", dbgthread_isvalid },
+	{ "stack", dbgthread_stack },
+	{ NULL, NULL }
+};
+
+int luaopen_dbgthread(lua_State *L) 
+{
+	int p = luaL_newmetatable(L, "dbgthread.metatable");
+
+	for (const luaL_Reg *l = dbgthread_func; l->name != NULL; l++) {
+		lua_pushstring(L, l->name);
+		lua_pushcfunction(L, l->func);
+		lua_settable(L, -3);
+	}
+
+	lua_newtable(L);
+	luaL_setfuncs(L, dbgthread_lib, 0);
+	lua_setglobal(L, "dbgthread");
 	return 1;
 }
 
@@ -1010,7 +1213,7 @@ static int writeqword(lua_State* L)
 	return 0;
 }
 
-static int readunicode(lua_State* L)
+static int readwidestrng(lua_State* L)
 {
 	CStringW unicode_string;
 	WCHAR temp_char;
@@ -1029,7 +1232,7 @@ static int readunicode(lua_State* L)
 	return 1;
 }
 
-static int readascii(lua_State* L)
+static int readstring(lua_State* L)
 {
 	CStringA ascii_string;
 	CHAR temp_char;
@@ -1301,8 +1504,8 @@ static const struct luaL_Reg dbgbasic_func[] =
 	{ "writeword", writeword },
 	{ "writedword", writedword },
 	{ "writeqword", writeqword },
-	{ "readunicode", readunicode },
-	{ "readascii", readascii },
+	{ "readwidestrng", readwidestrng },
+	{ "readstring", readstring },
 	{ "wait", wait },
 	{ "evalmasm", evalmasm },
 	{ "evalcpp", evalcpp },
@@ -1326,6 +1529,7 @@ EXT_COMMAND(lua,
 	luaopen_dbgtype(L);
 	luaopen_dbgreg(L);
 	luaopen_dbgmem(L);
+	luaopen_dbgthread(L);
 
 	lua_pushglobaltable(L);
 	luaL_setfuncs(L, dbgbasic_func, 0);
@@ -1349,6 +1553,7 @@ EXT_COMMAND(luacmd,
 	luaopen_dbgtype(L);
 	luaopen_dbgreg(L);
 	luaopen_dbgmem(L);
+	luaopen_dbgthread(L);
 
 	lua_pushglobaltable(L);
 	luaL_setfuncs(L, dbgbasic_func, 0);
@@ -1368,10 +1573,184 @@ EXT_COMMAND(luacmd,
 			input_length = 0;
 			break;
 		}
-		luaL_dostring(L, buffer);
+		if (luaL_dostring(L, buffer) != 0) {
+			Err("lua error: %s\r\n", lua_tostring(L, -1));
+		}
 		buffer[0] = 0;
 		input_length = 0;
 	}
 
 	lua_close(L);
+}
+
+std::map<CStringA, lua_State*> g_lua_loaded_list;
+std::set<CStringA> g_black_list;
+
+void BlacklistSnapshot(lua_State *L) {
+
+	lua_pushglobaltable(L);
+	lua_pushnil(L);
+	while (lua_next(L,-2) != 0) {
+		lua_pushvalue(L, -2);
+		g_black_list.insert(lua_tostring(L,-1));
+		lua_pop(L,2);
+	}
+	lua_pop(L,1);
+}
+
+EXT_COMMAND(luaload,
+	"Load lua file.",
+	"{;x,r;path;lua file path.}")
+{
+	LPCSTR lua_file = GetUnnamedArgStr(0);
+	LPCSTR lua_name = PathFindFileNameA(lua_file);
+	if (lua_name == NULL) {
+		Err("Cannot find lua file name.\r\n");
+		return;
+	}
+
+	CStringA lua_lwr = lua_name;
+	LPSTR name_buffer = lua_lwr.GetBuffer(lua_lwr.GetLength());
+	PathRemoveExtensionA(name_buffer);
+	lua_lwr.ReleaseBuffer();
+	lua_lwr.MakeLower();
+
+
+	if (g_lua_loaded_list.find(lua_lwr) != g_lua_loaded_list.end()) {
+		Err("script '%s' is loaded.\r\n'", lua_name);
+		return;
+	}
+
+	lua_State* L = luaL_newstate();
+	luaL_openlibs(L);
+	SetDefaultPrint(L);
+	luaopen_dbgmodule(L);
+	luaopen_dbgtype(L);
+	luaopen_dbgreg(L);
+	luaopen_dbgmem(L);
+	luaopen_dbgthread(L);
+
+	lua_pushglobaltable(L);
+	luaL_setfuncs(L, dbgbasic_func, 0);
+	lua_pop(L, 1);
+
+	if (g_black_list.empty()) {
+		BlacklistSnapshot(L);
+	}
+
+	if (luaL_dofile(L, lua_file) != 0) {
+		Err("lua error: %s\r\n", lua_tostring(L, -1));
+		lua_close(L);
+	}
+
+	g_lua_loaded_list[lua_lwr] = L;
+}
+
+EXT_COMMAND(luaunload,
+	"Unload lua file name.",
+	"{;x,r;name;lua file name.}")
+{
+	LPCSTR lua_name = GetUnnamedArgStr(0);
+	CStringA lua_lwr = lua_name;
+	lua_lwr.MakeLower();
+
+	std::map<CStringA, lua_State*>::iterator ret = g_lua_loaded_list.find(lua_lwr);
+	if (ret == g_lua_loaded_list.end()) {
+		Err("Cannot unload '%s'.\r\n", lua_name);
+		return;
+	}
+
+	lua_close(ret->second);
+	g_lua_loaded_list.erase(ret);
+}
+
+EXT_COMMAND(luado,
+	"Execute lua code.",
+	"{;x,r;lua string;lua code.}")
+{
+	LPCSTR lua_code = GetUnnamedArgStr(0);
+
+	CStringA lua_code_str = lua_code;
+	int pos = lua_code_str.Find("!");
+	if (pos == -1) {
+		Err("Cannot find script in code.\r\n");
+		return;
+	}
+
+	CStringA script_name(lua_code_str, pos);
+	script_name.MakeLower();
+
+	CStringA code_str(lua_code_str.GetString() + pos + 1);
+
+	std::map<CStringA, lua_State*>::iterator ret = g_lua_loaded_list.find(script_name);
+	if (ret == g_lua_loaded_list.end()) {
+		Err("Cannot find script in loaded list.\r\n");
+		return;
+	}
+
+	lua_State* L = ret->second;
+	if (luaL_dostring(L, code_str.GetString()) != 0) {
+		Err("lua error: %s\r\n", lua_tostring(L, -1));
+	}
+}
+
+void PrintIndent(int indent)
+{
+	for (int i = 0; i < indent; i++) {
+		g_Ext->Out("  ");
+	}
+}
+
+void PrintTable(lua_State *L, int indent)
+{
+	lua_pushnil(L);
+
+	while(lua_next(L, -2) != 0) {
+
+		lua_pushvalue(L, -2);
+		lua_pushvalue(L, -2);
+
+		if (g_black_list.find(lua_tostring(L,-2)) != g_black_list.end()) {
+			lua_pop(L, 3);
+			continue;
+		}
+
+		PrintIndent(indent);
+		g_Ext->Out("[%s] %s ", lua_typename(L, lua_type(L, -1)), lua_tostring(L, -2));
+
+		if(lua_isstring(L, -1)) {
+			
+			g_Ext->Out("= %s\r\n", lua_tostring(L, -1));
+		}
+		else if(lua_isnumber(L, -1)) {
+			g_Ext->Out("= %s\r\n", lua_tostring(L, -1));
+		}
+		else if(lua_istable(L, -1)) {
+			g_Ext->Out("\r\n");
+			PrintTable(L, indent + 1);
+		}
+		else {
+			g_Ext->Out("\r\n");
+		}
+
+		lua_pop(L, 3);
+	}
+}
+
+EXT_COMMAND(lualist,
+	"list loaded scripts.",
+	"")
+{
+	for (std::map<CStringA, lua_State*>::iterator it = g_lua_loaded_list.begin();
+		it != g_lua_loaded_list.end(); ++it) {
+			Out("script: %s\r\n", it->first.GetString());
+
+			lua_State* L = it->second;
+			
+			lua_pushglobaltable(L);
+			PrintTable(L, 1);
+			lua_pop(L,1);
+	}
+
+	Out("\r\n");
 }
