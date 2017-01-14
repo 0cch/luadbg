@@ -1457,7 +1457,9 @@ static int get_symbolnamebyoffset(lua_State* L)
 	CStringA sym_str;
 	sym_str.Format("%s+0x%I64x", name, disp);
 	lua_pushstring(L, sym_str.GetString());
-	return 1;
+	lua_pushstring(L, name);
+	lua_pushinteger(L, disp);
+	return 3;
 }
 
 static int get_symboloffsetbyname(lua_State* L)
