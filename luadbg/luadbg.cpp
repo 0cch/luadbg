@@ -240,6 +240,27 @@ static int dbgthread_isvalid(lua_State *L)
 	return 1;
 }
 
+static int dbgthread_getteb(lua_State *L)
+{
+	DBG_THREAD *m = dbgthread_check(L);
+	ULONG64 offset = 0;
+
+	ULONG current_dtid = 0;
+	g_Ext->m_System->GetCurrentThreadId(&current_dtid);
+	g_Ext->m_System->SetCurrentThreadId(m->ThreadDbgId);
+
+	HRESULT hr = g_Ext->m_System2->GetImplicitThreadDataOffset(&offset);
+	g_Ext->m_System->SetCurrentThreadId(current_dtid);
+
+	if (FAILED(hr)) {
+		lua_pushnil(L);
+		return 1;
+	}
+
+	lua_pushinteger(L, offset);
+	return 1;
+}
+
 static int dbgthread_currentid(lua_State *L)
 {
 	ULONG id = -1;
@@ -333,6 +354,7 @@ static const struct luaL_Reg dbgthread_func[] = {
 	{ "name", dbgthread_sysid },
 	{ "isvalid", dbgthread_isvalid },
 	{ "stack", dbgthread_stack },
+	{ "getteb", dbgthread_getteb },
 	{ NULL, NULL }
 };
 
